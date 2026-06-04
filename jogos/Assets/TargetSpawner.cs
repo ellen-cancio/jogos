@@ -1,80 +1,95 @@
 using UnityEngine;
+using System.Collections.Generic;
 
-public class Alvo : MonoBehaviour
+public class TargetSpawner : MonoBehaviour
 {
-    [HideInInspector]
-    public TargetSpawner.SpawnPoint spawnPoint;
+    [System.Serializable]
+    public class SpawnPoint
+    {
+        public Transform position;       // Posição do spawn (objeto vazio)
+        public GameObject targetPrefab;  // Qual target (Alvo) vai nascer
+        public int quantity = 1;         // Quantos targets
+        public Vector3 scale = Vector3.one; // Tamanho
+        public Vector3 rotation = Vector3.zero; // Rotação
 
-    [HideInInspector]
-    public bool moveHorizontal = false;
-    [HideInInspector]
-    public bool moveVertical = false;
-    [HideInInspector]
-    public float moveSpeed = 3f;
-    [HideInInspector]
-    public float moveRange = 5f;
-    [HideInInspector]
-    public int health = 1;
-    [HideInInspector]
-    public int pointsValue = 10;
+        // Movimento
+        public bool moveHorizontal = false;
+        public bool moveVertical = false;
+        public float moveSpeed = 3f;
+        public float moveRange = 5f;
 
-    private Vector3 startPosition;
-    private float directionX = 1f;
-    private float directionY = 1f;
-    private FPSAimController playerShooter; 
+        public int health = 1;
+        public int pointsValue = 10;
+    }
+
+    public List<SpawnPoint> spawnPoints = new List<SpawnPoint>();
+    private List<GameObject> spawnedTargets = new List<GameObject>();
 
     void Start()
     {
-        startPosition = transform.position;
-        // Procura o script de controle de tiro do jogador para somar pontos
-        playerShooter = FindObjectOfType<FPSAimController>();
+        SpawnAllTargets();
     }
 
     void Update()
     {
-        // Controle de Movimento
-        Vector3 newPos = transform.position;
+        // Remove targets destruídos da lista
+        spawnedTargets.RemoveAll(t => t == null);
 
-        if (moveHorizontal)
+        // Conta targets ativos por spawn point
+        foreach (SpawnPoint point in spawnPoints)
         {
-            newPos.x += directionX * moveSpeed * Time.deltaTime;
-            if (Mathf.Abs(newPos.x - startPosition.x) >= moveRange)
-                directionX *= -1;
+            int currentCount = 0;
+            foreach (GameObject target in spawnedTargets)
+            {
+                if (target != null)
+                {
+                    // Usa o script Alvo que nós criamos anteriormente
+                    Alvo targetScript = target.GetComponent<Alvo>();
+                    if (targetScript != null && targetScript.spawnPoint == point)
+                        currentCount++;
+                }
+            }
+
+            // Se faltar target, cria um novo
+            if (currentCount < point.quantity)
+            {
+                SpawnTarget(point);
+            }
         }
-
-        if (moveVertical)
-        {
-            newPos.y += directionY * moveSpeed * Time.deltaTime;
-            if (Mathf.Abs(newPos.y - startPosition.y) >= moveRange)
-                directionY *= -1;
-        }
-
-        transform.position = newPos;
-
-        // Controle de Rotação
-        transform.Rotate(Vector3.up, 180 * Time.deltaTime);
     }
 
-    void OnTriggerEnter(Collider other)
+    void SpawnAllTargets()
     {
-        // DICA: Como vi na sua hierarquia que o prefab se chama "Bala", 
-        // certifique-se de que a Tag do objeto bala na Unity também seja "Bullet" (ou altere o nome abaixo para "Bala")
-        if (other.CompareTag("Bala")) 
+        foreach (SpawnPoint point in spawnPoints)
         {
-            health--;
-
-            if (health <= 0)
+            for (int i = 0; i < point.quantity; i++)
             {
-                if (playerShooter != null)
-                    playerShooter.AddScore(pointsValue);
-
-                Destroy(other.gameObject);
-                Destroy(gameObject);
-            }
-            else
-            {
-                Destroy(other.gameObject);
+                SpawnTarget(point);
             }
         }
+    }
+
+    void SpawnTarget(SpawnPoint point)
+    {
+        if (point.position == null || point.targetPrefab == null) return;
+
+        // Cria o target
+        GameObject target = Instantiate(point.targetPrefab, point.position.position, Quaternion.Euler(point.rotation));
+        target.transform.localScale = point.scale;
+
+        // Configura o target (Conectando com o seu Alvo.cs)
+        Alvo targetScript = target.GetComponent<Alvo>();
+        if (targetScript != null)
+        {
+            targetScript.spawnPoint = point;
+            targetScript.moveHorizontal = point.moveHorizontal;
+            targetScript.moveVertical = point.moveVertical;
+            targetScript.moveSpeed = point.moveSpeed;
+            targetScript.moveRange = point.moveRange;
+            targetScript.health = point.health;
+            targetScript.pointsValue = point.pointsValue;
+        }
+
+        spawnedTargets.Add(target);
     }
 }
