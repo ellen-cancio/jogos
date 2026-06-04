@@ -2,16 +2,28 @@ using UnityEngine;
 
 public class Alvo : MonoBehaviour
 {
-    public GameManager gameManager;
+   
+    private GameManager gameManager; 
     public int pontos = 10;
+
+    void Start()
+    {
+        
+        gameManager = FindObjectOfType<GameManager>();
+    }
 
     void OnCollisionEnter(Collision collision)
     {
-        // Se o objeto que bateu tiver o script "Bala", ele conta o ponto
+        
         if (collision.gameObject.GetComponent<Bala>() != null)
         {
-            gameManager.AdicionarScore(pontos);
-            Destroy(gameObject); // O alvo é destruído
+            
+            if (gameManager != null) 
+            {
+                gameManager.AdicionarScore(pontos);
+            }
+            
+            Destroy(gameObject); 
         }
     }
 }
